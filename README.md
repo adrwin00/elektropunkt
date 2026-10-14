@@ -1,73 +1,73 @@
-# ElektroPunkt – prototyp sklepu do badania (HTML/CSS/JS)
+# ElektroPunkt – Prototyp eines Online-Shops für die Studie (HTML/CSS/JS)
 
-Statyczna strona bez backendu i bez bazy danych. Dwa warianty tego samego sklepu:
+Statische Webseite ohne Backend und ohne Datenbank. Zwei Varianten desselben Shops:
 
-- `?cond=a` – wersja z wyszukiwarką
-- `?cond=b` – wersja z chatbotem ShopBot (skrypt na słowach kluczowych, bez modelu AI)
+- `?cond=a` – Version mit Suchfunktion
+- `?cond=b` – Version mit Chatbot ShopBot (Skript auf Basis von Stichwörtern, ohne KI-Modell)
 
-Przykładowe adresy po wdrożeniu na GitHub Pages:
+Beispieladressen nach der Veröffentlichung auf GitHub Pages:
 
 - `https://adrwin00.github.io/elektropunkt/index.html?cond=a`
 - `https://adrwin00.github.io/elektropunkt/index.html?cond=b`
 
-## Struktura plików (wersja bez folderów)
+## Dateistruktur (Version ohne Ordner)
 
-Wszystkie pliki leżą obok siebie, bez podfolderów. Dzięki temu wgranie na GitHub nie wymaga zachowania struktury.
+Alle Dateien liegen nebeneinander, ohne Unterordner. Dadurch muss beim Hochladen auf GitHub keine Ordnerstruktur erhalten bleiben.
 
-| Plik | Do czego służy |
+| Datei | Zweck |
 | --- | --- |
-| `index.html`, `suche.html`, `produkt.html`, `kategorie.html` | strony sklepu |
-| `style.css` | cały wygląd |
-| `data.js` | lista 36 produktów, kategorie, funkcje wyszukiwania |
-| `common.js` | nagłówek, stopka, koszyk, wysyłanie fraz do ankiety |
-| `shopbot.js` | logika chatbota (pytania, rozpoznawanie słów, rekomendacja) |
-| `home.js`, `search.js`, `product.js`, `category.js` | logika poszczególnych stron |
-| `img-products-*.jpg`, `img-cat-*.jpg` | zdjęcia produktów i kategorii |
-| `favicon.svg`, `favicon.ico` | ikonka w karcie przeglądarki |
+| `index.html`, `suche.html`, `produkt.html`, `kategorie.html` | Seiten des Shops |
+| `style.css` | gesamtes Erscheinungsbild |
+| `data.js` | Liste der 36 Produkte, Kategorien, Suchfunktionen |
+| `common.js` | Kopfzeile, Fußzeile, Warenkorb, Weitergabe der Suchbegriffe an die Umfrage |
+| `shopbot.js` | Logik des Chatbots (Fragen, Worterkennung, Empfehlung) |
+| `home.js`, `search.js`, `product.js`, `category.js` | Logik der einzelnen Seiten |
+| `img-products-*.jpg`, `img-cat-*.jpg` | Bilder der Produkte und Kategorien |
+| `favicon.svg`, `favicon.ico` | Symbol im Browser-Tab |
 
-## Wdrożenie na GitHub Pages
+## Veröffentlichung auf GitHub Pages
 
-1. Załóż repozytorium (publiczne – na darmowym koncie Pages nie działa z prywatnego).
-2. Wgraj wszystkie pliki z tego folderu (pliki mają leżeć w głównym katalogu repozytorium).
-3. Settings → Pages → Source: „Deploy from a branch”, branch `main`, folder `/ (root)` → Save.
-4. Po minucie–dwóch strona działa pod adresem widocznym w Settings → Pages.
+1. Ein Repository anlegen (öffentlich – mit dem kostenlosen Konto funktioniert Pages nicht aus einem privaten Repository).
+2. Alle Dateien aus diesem Ordner hochladen (die Dateien müssen im Hauptverzeichnis des Repositorys liegen).
+3. Settings → Pages → Source: „Deploy from a branch“, Branch `main`, Ordner `/ (root)` → Save.
+4. Nach ein bis zwei Minuten ist die Seite unter der in Settings → Pages angezeigten Adresse erreichbar.
 
-Test lokalny bez internetu: wystarczy dwukrotnie kliknąć `index.html`.
+Lokaler Test ohne Internet: `index.html` einfach per Doppelklick öffnen.
 
-## Połączenie z ankietą (iframe)
+## Anbindung an die Umfrage (iframe)
 
-Sklep wysyła każdą wpisaną frazę (wyszukiwarka i czat) do strony nadrzędnej przez `postMessage`.
-Strona z ankietą musi na to nasłuchiwać, np.:
+Der Shop sendet jeden eingegebenen Suchbegriff (Suchfeld und Chat) per `postMessage` an die übergeordnete Seite.
+Die Umfrageseite muss darauf lauschen, z. B.:
 
 ```html
 <script>
 window.addEventListener("message", function (e) {
-  if (e.origin !== "https://adrwin00.github.io") return;   // sprawdź nadawcę
+  if (e.origin !== "https://adrwin00.github.io") return;   // Absender prüfen
   if (!e.data || e.data.channel !== "elektropunkt:search") return;
-  console.log(e.data.search);    // ostatnia fraza
-  console.log(e.data.searches);  // wszystkie frazy z tej sesji (tablica)
-  // tutaj zapisz wartość do ukrytego pola ankiety
+  console.log(e.data.search);    // letzter Suchbegriff
+  console.log(e.data.searches);  // alle Suchbegriffe dieser Sitzung (Array)
+  // hier den Wert in einem versteckten Feld der Umfrage speichern
 });
 </script>
 ```
 
-Osadzenie:
+Einbettung:
 
 ```html
 <iframe src="https://adrwin00.github.io/elektropunkt/index.html?cond=a" width="100%" height="900"></iframe>
 ```
 
-## Co jest zapisywane
+## Was gespeichert wird
 
-- Sklep nie wysyła nic na żaden serwer i nie ma analityki.
-- Licznik koszyka i lista wpisanych fraz są trzymane tylko w pamięci karty przeglądarki uczestnika (`sessionStorage`) i znikają po jej zamknięciu.
-- Dane z badania powstają wyłącznie po stronie ankiety (odbiór `postMessage`).
-- Serwer hostingu (GitHub) może zapisywać standardowe logi odwiedzin.
+- Der Shop sendet nichts an einen Server und enthält keine Analyse-Dienste.
+- Der Warenkorbzähler und die Liste der eingegebenen Suchbegriffe werden nur im Speicher des Browser-Tabs der Teilnehmer:innen gehalten (`sessionStorage`) und verschwinden beim Schließen des Tabs.
+- Die Studiendaten entstehen ausschließlich auf Seiten der Umfrage (Empfang der `postMessage`).
+- Der Hosting-Anbieter (GitHub) kann übliche Zugriffsprotokolle speichern.
 
-## Uwagi do zachowania
+## Hinweise zum Verhalten
 
-- Linki wewnątrz sklepu zachowują parametr `cond`, więc uczestnik nie przeskakuje między wariantami.
-- W wariancie A lista produktów filtruje się podczas pisania, a najlepiej pasujące produkty dostają plakietkę „Empfohlen für dich”.
-- Bot (wariant B) wita się pytaniem „Wonach suchen Sie?”. Potem rozpoznaje słowa kluczowe wraz z odmianami (np. „läuft”, „Kopfhörer”), liczby słowne w budżecie („hundert Euro”), dodatki (np. wasserdicht, Noise Cancelling) i odpowiedzi w stylu „egal”. Pomija pytania, na które uczestnik już odpowiedział, a na końcu zawsze poleca te same produkty (RunFit Sport Pro i trzy podobne modele).
-- Sortowanie w wariancie A działa (Beliebtheit, Preis aufsteigend, Preis absteigend, Bewertung).
-- Bot działa wyłącznie na regułach i nie korzysta z żadnego modelu AI ani zewnętrznego serwera.
+- Interne Links im Shop behalten den Parameter `cond` bei, sodass die Teilnehmer:innen nicht zwischen den Varianten wechseln.
+- In Variante A wird die Produktliste während der Eingabe live gefiltert, und die am besten passenden Produkte erhalten die Kennzeichnung „Empfohlen für dich“.
+- Der Bot (Variante B) begrüßt mit der Frage „Wonach suchen Sie?“. Anschließend erkennt er Stichwörter samt Wortendungen (z. B. „läuft“, „Kopfhörer“), Zahlwörter beim Budget („hundert Euro“), Zusatzwünsche (z. B. wasserdicht, Noise Cancelling) und Antworten wie „egal“. Er überspringt Fragen, die die Teilnehmer:innen bereits beantwortet haben, und empfiehlt am Ende immer dieselben Produkte (RunFit Sport Pro und drei ähnliche Modelle).
+- Die Sortierung in Variante A funktioniert (Beliebtheit, Preis aufsteigend, Preis absteigend, Bewertung).
+- Der Bot arbeitet ausschließlich regelbasiert und nutzt weder ein KI-Modell noch einen externen Server.
