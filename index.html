@@ -17,41 +17,5 @@
   <script src="common.js"></script>
   <script src="shopbot.js"></script>
   <script src="home.js"></script>
-
-  <script>
-    function sendHeight(scrollToTop) {
-      var mainElem = document.getElementById('main');
-      var body = document.body;
-      var html = document.documentElement;
-      
-      var h = Math.max(
-        body.scrollHeight, body.offsetHeight, 
-        html.scrollHeight, html.offsetHeight,
-        mainElem ? mainElem.scrollHeight + 300 : 0
-      );
-
-      if (h > 100) {
-        window.parent.postMessage({ 
-          frameHeight: h + 40,
-          scrollTop: !!scrollToTop 
-        }, '*');
-      }
-    }
-
-    window.addEventListener('load', function() {
-      sendHeight(true);
-      setTimeout(function() { sendHeight(false); }, 300);
-      setTimeout(function() { sendHeight(false); }, 800);
-      setTimeout(function() { sendHeight(false); }, 1500);
-    });
-
-    // Bei jedem Klick auf ein Produkt oder eine Kategorie nach oben scrollen
-    document.addEventListener('click', function() {
-      setTimeout(function() { sendHeight(true); }, 150);
-      setTimeout(function() { sendHeight(false); }, 600);
-    });
-
-    window.addEventListener('resize', function() { sendHeight(false); });
-  </script>
 </body>
 </html>
