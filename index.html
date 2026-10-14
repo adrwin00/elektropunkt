@@ -19,22 +19,40 @@
   <script src="home.js"></script>
 
   <script>
-    function sendMyHeight() {
-      var body = document.body, html = document.documentElement;
-      var fullHeight = Math.max(
-        body.scrollHeight, body.offsetHeight, 
-        html.clientHeight, html.scrollHeight, html.offsetHeight
-      );
+    function sendHeight() {
+      // Ermittlung der Gesamthöhe aller generierten Elemente
+      var mainElem = document.getElementById('main');
+      var body = document.body;
+      var html = document.documentElement;
       
-      window.parent.postMessage({ frameHeight: fullHeight + 20 }, '*');
+      var h = Math.max(
+        body.scrollHeight, body.offsetHeight, 
+        html.scrollHeight, html.offsetHeight,
+        mainElem ? mainElem.scrollHeight + 300 : 0
+      );
+
+      // Nur senden, wenn die Höhe größer als ein einzelnes Suchfeld ist
+      if (h > 100) {
+        window.parent.postMessage({ frameHeight: h + 40 }, '*');
+      }
     }
 
-    window.addEventListener('load', sendMyHeight);
-    window.addEventListener('resize', sendMyHeight);
+    // Senden nach dem ersten Laden
+    window.addEventListener('load', function() {
+      sendHeight();
+      // Zusätzliche Prüfungen nach dem Rendering des dynamischen JavaScripts
+      setTimeout(sendHeight, 300);
+      setTimeout(sendHeight, 800);
+      setTimeout(sendHeight, 1500);
+    });
 
-    if (typeof ResizeObserver !== 'undefined') {
-      new ResizeObserver(sendMyHeight).observe(document.body);
-    }
+    // Reagieren auf Klicks (Kategorieseiten, Produktwechsel etc.)
+    document.addEventListener('click', function() {
+      setTimeout(sendHeight, 200);
+      setTimeout(sendHeight, 600);
+    });
+
+    window.addEventListener('resize', sendHeight);
   </script>
 </body>
 </html>
