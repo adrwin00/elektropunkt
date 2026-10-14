@@ -17,5 +17,24 @@
   <script src="common.js"></script>
   <script src="shopbot.js"></script>
   <script src="home.js"></script>
+
+  <script>
+    function sendMyHeight() {
+      var body = document.body, html = document.documentElement;
+      var fullHeight = Math.max(
+        body.scrollHeight, body.offsetHeight, 
+        html.clientHeight, html.scrollHeight, html.offsetHeight
+      );
+      
+      window.parent.postMessage({ frameHeight: fullHeight + 20 }, '*');
+    }
+
+    window.addEventListener('load', sendMyHeight);
+    window.addEventListener('resize', sendMyHeight);
+
+    if (typeof ResizeObserver !== 'undefined') {
+      new ResizeObserver(sendMyHeight).observe(document.body);
+    }
+  </script>
 </body>
 </html>
