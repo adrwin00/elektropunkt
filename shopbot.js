@@ -1,57 +1,375 @@
 /* ElektroPunkt – ShopBot (Bedingung B)
- * Kein echtes KI-Modell: Der Bot erkennt Stichwörter und stellt feste Fragen. */
+ * Kein echtes KI-Modell: Der Bot erkennt Stichwörter (auch Wortendungen, Zahlwörter beim Budget)
+ * und stellt feste Fragen. Am Ende empfiehlt er immer dieselben Produkte. */
+(function () {
+const GREETING = "Hallo! 👋 Wie kann ich Ihnen heute helfen? Wonach suchen Sie?";
+/** German input made comparable: umlauts written out, everything else to spaces. */
+const norm = (s) =>
+  s
+    .toLowerCase()
+    .replace(/ä/g, "ae")
+    .replace(/ö/g, "oe")
+    .replace(/ü/g, "ue")
+    .replace(/ß/g, "ss")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+
+const rxCache = new Map();
+/** Word-aware keyword test. A trailing "*" also accepts word endings (lauf* → läuft, laufen). */
+const has = (s, words) => {
+  for (const w of words) {
+    let re = rxCache.get(w);
+    if (!re) {
+      const stem = w.endsWith("*");
+      const base = (stem ? w.slice(0, -1) : w).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      re = new RegExp(stem ? `\\b${base}\\w*` : `\\b${base}\\b`);
+      rxCache.set(w, re);
+    }
+    if (re.test(s)) return true;
+  }
+  return false;
+};
+
+const WORD_NUMBERS = [
+  ["einhundert", "100"],
+  ["hundert", "100"],
+  ["neunzig", "90"],
+  ["achtzig", "80"],
+  ["siebzig", "70"],
+  ["sechzig", "60"],
+  ["fuenfzig", "50"],
+  ["vierzig", "40"],
+  ["dreissig", "30"],
+  ["zwanzig", "20"],
+];
+
+const budgetOf = (s) => {
+  const expanded = WORD_NUMBERS.reduce(
+    (acc, [word, digits]) => acc.replace(new RegExp(`\\b${word}\\b`), digits),
+    s,
+  );
+  for (const raw of expanded.match(/\d{1,4}/g) || []) {
+    const value = Number(raw);
+    if (value >= 10 && value <= 5000) return `Budget bis ca. ${value}€`;
+  }
+  if (
+    has(s, [
+      "guenstig*",
+      "gunstig*",
+      "billig*",
+      "preiswert*",
+      "sparsam*",
+      "nicht so teuer",
+      "nicht viel geld",
+      "kleines budget",
+      "budget egal",
+      "preis leistungs*",
+    ])
+  )
+    return "Budget notiert";
+  return null;
+};
+
+const TOPICS = [
+  {
+    key: "need",
+    question: "Wonach suchen Sie genau?",
+    match: (s) =>
+      has(s, [
+        "kopfh*",
+        "kophorer",
+        "kophrer",
+        "headphone*",
+        "headset*",
+        "earbud*",
+        "buds",
+        "ohrhrer",
+        "oehrer",
+        "hoerer",
+        "ohrstoepsel*",
+        "stoepsel*",
+        "musik",
+        "audio*",
+        "hoer*",
+      ])
+        ? "Sie suchen Kopfhörer"
+        : null,
+  },
+  {
+    key: "use",
+    question: "Wofür möchten Sie die Kopfhörer hauptsächlich nutzen – Sport, Pendeln oder zu Hause?",
+    match: (s) => {
+      if (
+        has(s, [
+          "sport*",
+          "laufen",
+          "lauft",
+          "laeuft",
+          "laeufer*",
+          "jog*",
+          "run",
+          "running",
+          "training",
+          "trainier*",
+          "gym*",
+          "fitness",
+          "workout",
+          "rad",
+          "fahrrad",
+          "cycling",
+          "bike",
+          "marathon",
+          "schwimm*",
+          "swim*",
+          "wandern",
+          "yoga",
+          "cardio",
+          "aerobic",
+          "hiking",
+          "home trainer",
+        ])
+      )
+        return "für den Sport";
+      if (
+        has(s, [
+          "pendel*",
+          "bahn*",
+          "zug*",
+          "zueg*",
+          "strassenbahn",
+          "tram",
+          "bus",
+          "reise*",
+          "urlaub",
+          "unterwegs",
+          "draussen",
+          "auto",
+          "flug*",
+          "fliegen",
+          "flughafen",
+          "umsteigen",
+        ])
+      )
+        return "für unterwegs";
+      if (
+        has(s, [
+          "zu hause",
+          "zuhause",
+          "daheim",
+          "home",
+          "wohnzimmer",
+          "buero",
+          "buro",
+          "office",
+          "arbeit*",
+          "lernen",
+          "konzentration",
+          "pc",
+          "gaming",
+          "zock*",
+          "konsole",
+          "fernsehen",
+          "tv",
+          "film*",
+          "serie*",
+          "streaming",
+          "podcast*",
+          "hoerbuch*",
+          "schlafen",
+          "entspannung",
+          "meditation",
+          "kinder*",
+          "kind",
+          "tochter",
+          "sohn",
+          "schule",
+        ])
+      )
+        return "für zu Hause";
+      return null;
+    },
+  },
+  {
+    key: "form",
+    question: "Bevorzugen Sie In-Ear oder Over-Ear?",
+    match: (s) => {
+      if (
+        has(s, [
+          "in ear*",
+          "inear*",
+          "earbud*",
+          "buds",
+          "ohrstoepsel*",
+          "stoepsel*",
+          "im ohr",
+          "kompakt*",
+        ])
+      )
+        return "In-Ear";
+      if (
+        has(s, [
+          "over ear*",
+          "overear*",
+          "on ear*",
+          "onear*",
+          "buegel*",
+          "kopfbuegel*",
+          "ueber dem ohr",
+          "ums ohr",
+          "gross*",
+          "kapsel*",
+        ])
+      )
+        return "Over-Ear";
+      return null;
+    },
+  },
+  {
+    key: "budget",
+    question: "Wie hoch ist Ihr Budget ungefähr?",
+    match: budgetOf,
+  },
+];
+
+/** Details the bot acknowledges without asking about them. */
+const EXTRAS = [
+  {
+    label: "wasserfest",
+    words: [
+      "wasserfest*",
+      "wasserdicht*",
+      "wasser dich*",
+      "schwimm*",
+      "swim*",
+      "pool",
+      "schweiss*",
+      "schwitz*",
+      "regen",
+      "dusch*",
+      "ipx",
+      "ip 6*",
+      "ip 7*",
+      "ip 8*",
+    ],
+  },
+  {
+    label: "Noise Cancelling",
+    words: [
+      "noise cancelling",
+      "noisecancelling",
+      "geraeusch*",
+      "gerausch*",
+      "anc",
+      "abschirm*",
+      "ruhe",
+      "ruhig",
+    ],
+  },
+  {
+    label: "lange Akkulaufzeit",
+    words: ["akku*", "laufzeit", "laden*", "ladestation", "stunden", "tagelang", "kapazitaet*"],
+  },
+  {
+    label: "kabellos",
+    words: ["bluetooth", "kabellos", "wireless", "ohne kabel", "kein kabel", "ohne stecker"],
+  },
+  { label: "mit Kabel", words: ["aux", "3 5", "jack*", "klinke", "mit kabel"] },
+  {
+    label: "gutes Mikrofon",
+    words: [
+      "mikrofon*",
+      "mic",
+      "headset*",
+      "telefon*",
+      "anrufe",
+      "gespraeche",
+      "call*",
+      "zoom",
+      "skype",
+      "konferenz",
+      "meetings",
+    ],
+  },
+  {
+    label: "bequemer Sitz",
+    words: [
+      "bequem*",
+      "komfort*",
+      "leicht*",
+      "sitz*",
+      "kleine ohren",
+      "druck*",
+      "lang tragen",
+      "nicht drueckt",
+    ],
+  },
+  {
+    label: "satter Klang",
+    words: ["bass*", "sound*", "klang*", "hi fi", "hifi", "qualitaet*", "hochwertig*", "premium"],
+  },
+  {
+    label: "schonend für die Ohren",
+    words: [
+      "gehoer*",
+      "lautstaerke*",
+      "sensibel*",
+      "empfindlich*",
+      "ohrenschmerzen",
+      "tinnitus",
+      "ohren belast*",
+    ],
+  },
+  {
+    label: "Farbe notiert",
+    words: [
+      "schwarz*",
+      "weiss*",
+      "grau*",
+      "blau*",
+      "rot*",
+      "gruen*",
+      "gelb*",
+      "silber*",
+      "rosa",
+      "pink",
+      "orange",
+      "lila",
+    ],
+  },
+];
+
+/** Answers like "egal" close the open question without adding new information. */
+const DONT_CARE = [
+  "egal",
+  "ist mir egal",
+  "keine praeferenz*",
+  "keine praferenz*",
+  "weiss nicht",
+  "weiss ich nicht",
+  "keine ahnung",
+  "kein plan",
+  "was du willst",
+  "wie du magst",
+  "beides",
+  "jedes",
+  "alle",
+  "hauptsache gut",
+  "ist mir recht",
+  "schon recht",
+  "passt schon",
+];
+const ACKS = ["Danke!", "Verstanden.", "Super, danke.", "Alles klar."];
+const FINAL_TEXT =
+  "Basierend auf Ihren Angaben empfehle ich Ihnen die **RunFit Sport Pro — 69€**: wasserfest, sicherer Sitz und lange Akkulaufzeit. Hier sind auch ein paar ähnliche Modelle:";
+
 
 var BOT_RECOMMENDED_IDS = [1, 13, 15, 10];
 
-var BOT_ACKS = [
-  "Danke, das hilft mir weiter!",
-  "Verstanden, notiere ich mir das!",
-  "Gut zu wissen, danke!"
-];
-
-var BOT_FINAL =
-  "Alles klar, vielen Dank! Basierend auf Ihren Angaben empfehle ich Ihnen: RunFit Sport Pro — 69€ — wasserfest und mit sicherem Halt beim Laufen.";
-
-/* Themen: Wenn ein Stichwort schon genannt wurde, wird die Frage übersprungen. */
-var BOT_TOPICS = [
-  {
-    id: "einsatz",
-    question: "Wofür möchten Sie die Kopfhörer hauptsächlich nutzen — Sport, Pendeln oder zu Hause?",
-    keywords: ["sport", "laufen", "joggen", "fitness", "training", "gym", "pendeln", "bahn", "zug", "büro", "buero", "arbeit", "zuhause", "zu hause", "reisen", "gaming"],
-    echo: function (hit) { return "Sie nutzen die Kopfhörer also vor allem für „" + hit + "“ — das notiere ich mir."; }
-  },
-  {
-    id: "bauform",
-    question: "Bevorzugen Sie In-Ear-Stöpsel oder Over-Ear-Kopfhörer?",
-    keywords: ["in-ear", "in ear", "stöpsel", "stoepsel", "over-ear", "over ear", "bügel", "buegel", "on-ear", "ohrhörer", "ohrhoerer"],
-    echo: function (hit) { return "Bauform „" + hit + "“ habe ich mir notiert."; }
-  },
-  {
-    id: "farbe",
-    question: "Haben Sie eine Farbpräferenz?",
-    keywords: ["schwarz", "weiß", "weiss", "grau", "blau", "rot", "grün", "gruen", "silber", "beige", "rosa", "pink", "farbe"],
-    echo: function (hit) { return "Farbe „" + hit + "“ — verstanden."; }
-  },
-  {
-    id: "features",
-    question: "Sind Ihnen Noise Cancelling oder eine lange Akkulaufzeit wichtig?",
-    keywords: ["noise", "anc", "geräuschunterdrückung", "akku", "laufzeit", "batterie", "wasserfest", "spritzwasser", "bluetooth", "kabellos"],
-    echo: function (hit) { return "„" + hit + "“ ist Ihnen wichtig — gut zu wissen."; }
-  },
-  {
-    id: "budget",
-    question: "Und wie hoch ist Ihr Budget ungefähr?",
-    keywords: ["€", "eur", "euro", "budget", "günstig", "guenstig", "billig", "preis"],
-    echo: function (hit) { return "Beim Preis orientiere ich mich an „" + hit + "“."; }
-  }
-];
-
-function botFindHit(text, keywords) {
-  var t = text.toLowerCase();
-  for (var i = 0; i < keywords.length; i++) {
-    if (t.indexOf(keywords[i]) !== -1) return keywords[i];
-  }
-  return null;
+/** Sehr einfaches Markdown: nur **fett**. */
+function botText(text) {
+  return esc(text).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
 }
 
 function renderShopBot(container, query) {
@@ -59,8 +377,10 @@ function renderShopBot(container, query) {
   var messages = [];
   var typing = true;
   var done = false;
-  var covered = {};
-  var pending = null;
+  var busy = false;
+  var covered = new Set();
+  var seenExtras = new Set();
+  var pendingAsked = "need";
 
   container.innerHTML =
     '<section class="shopbot">' +
@@ -105,7 +425,7 @@ function renderShopBot(container, query) {
   function draw() {
     var html = messages.map(function (m) {
       var cls = "msg " + (m.from === "user" ? "msg-user" : "msg-bot") + (m.products ? " msg-wide" : "");
-      return '<div class="' + cls + '"><div class="bubble">' + esc(m.text) + (m.products ? productCards() : "") + "</div></div>";
+      return '<div class="' + cls + '"><div class="bubble">' + botText(m.text) + (m.products ? productCards() : "") + "</div></div>";
     }).join("");
     if (typing) html += '<p class="typing" role="status">ShopBot schreibt …</p>';
     chat.innerHTML = html;
@@ -116,16 +436,13 @@ function renderShopBot(container, query) {
   }
 
   function greet() {
-    if (query.trim()) reportSearchToParent(query);
-    var pre = [];
-    BOT_TOPICS.forEach(function (t) {
-      var hit = botFindHit(query, t.keywords);
-      if (hit) { covered[t.id] = true; pre.push(t.echo(hit)); }
-    });
-    /* Erste Frage bleibt offen: noch kein Thema gilt als "aktuelle Frage" */
-    pending = null;
-    messages = [{ from: "bot", text: "Hallo! 👋 Wie kann ich Ihnen heute helfen? Wonach suchen Sie?" }];
-    if (pre.length) messages.push({ from: "bot", text: pre.join(" ") });
+    if (query.trim()) {
+      reportSearchToParent(query);
+      var q = norm(query);
+      TOPICS.forEach(function (t) { if (t.match(q)) covered.add(t.key); });
+      EXTRAS.forEach(function (e) { if (has(q, e.words)) seenExtras.add(e.label); });
+    }
+    messages = [{ from: "bot", text: GREETING }];
     typing = false;
     draw();
     textarea.focus();
@@ -133,37 +450,52 @@ function renderShopBot(container, query) {
 
   function send(value) {
     var text = value.trim();
-    if (!text || typing || done) return;
+    if (!text || typing || done || busy) return;
+    busy = true;
     reportSearchToParent(text);
     messages.push({ from: "user", text: text });
     textarea.value = "";
     typing = true;
     draw();
 
-    if (pending) covered[pending.id] = true;
-    var echoes = [];
-    BOT_TOPICS.forEach(function (t) {
-      if (covered[t.id]) return;
-      var hit = botFindHit(text, t.keywords);
-      if (hit) { covered[t.id] = true; echoes.push(t.echo(hit)); }
+    var lower = norm(text);
+    var topicEchoes = [];
+    TOPICS.forEach(function (t) {
+      if (covered.has(t.key)) return;
+      var hit = t.match(lower);
+      if (hit) { covered.add(t.key); topicEchoes.push(hit); }
     });
-    var next = BOT_TOPICS.filter(function (t) { return !covered[t.id]; })[0] || null;
-    pending = next;
+    var extraEchoes = [];
+    EXTRAS.forEach(function (e) {
+      if (seenExtras.has(e.label)) return;
+      if (has(lower, e.words)) { seenExtras.add(e.label); extraEchoes.push(e.label); }
+    });
+    /* Eine Antwort ohne neue Angaben beantwortet trotzdem die offene Frage. */
+    var pending = TOPICS.filter(function (t) { return !covered.has(t.key); })[0];
+    var shrugged = !topicEchoes.length && has(lower, DONT_CARE);
+    if (pending && (shrugged || (!topicEchoes.length && pendingAsked === pending.key))) {
+      covered.add(pending.key);
+    }
+    if ((topicEchoes.length || extraEchoes.length) && !covered.has("need")) covered.add("need");
+    var next = TOPICS.filter(function (t) { return !covered.has(t.key); })[0];
+    var echoes = topicEchoes.concat(extraEchoes).slice(0, 4);
+    var ack = echoes.length
+      ? "Alles klar – " + echoes.join(", ") + ". "
+      : ACKS[Math.floor(Math.random() * ACKS.length)] + " ";
 
-    var delay = 1000 + Math.floor(Math.random() * 800);
     setTimeout(function () {
-      messages.push({ from: "bot", text: BOT_ACKS[Math.floor(Math.random() * BOT_ACKS.length)] });
-      if (echoes.length) messages.push({ from: "bot", text: echoes.join(" ") });
       if (next) {
-        messages.push({ from: "bot", text: next.question });
+        pendingAsked = next.key;
+        messages.push({ from: "bot", text: ack + next.question });
       } else {
-        messages.push({ from: "bot", text: BOT_FINAL, products: true });
+        messages.push({ from: "bot", text: ack + FINAL_TEXT, products: true });
         done = true;
       }
+      busy = false;
       typing = false;
       draw();
       if (!done) textarea.focus();
-    }, delay);
+    }, 1000 + Math.random() * 800);
   }
 
   form.addEventListener("submit", function (e) {
@@ -183,3 +515,6 @@ function renderShopBot(container, query) {
   draw(); /* zeigt zuerst "ShopBot schreibt …" */
   setTimeout(greet, 800);
 }
+
+  window.renderShopBot = renderShopBot;
+})();
